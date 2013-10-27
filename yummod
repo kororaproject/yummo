@@ -1,0 +1,170 @@
+#!/usr/bin/perl
+#
+# Copyright (C) 2013    Ian Firns   <firnsy@kororaproject.org>
+#                       Chris Smart <csmart@kororaproject.org>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#j
+
+use lib './lib';
+
+use Mojolicious::Lite;
+use Data::Dumper;
+
+use Yummo::Store;
+
+my $store = Yummo::Store->new;
+
+say "Loading repositories ...";
+$store->load_repository_directory;
+
+# reload repositories every hour
+Mojo::IOLoop->recurring(3600 => sub {
+  say "Reloading repositories ...";
+  $store->load_repository_directory;
+});
+
+helper build_filter => sub {
+  my $self = shift;
+
+  return [
+    repoid   => $self->param('repoid')  // undef,
+    repo     => $self->param('repo')    // undef,
+
+    arch     => $self->param('arch')    // undef,
+    release  => $self->param('release') // undef,
+    name     => $self->param('name')    // undef,
+
+    fields   => $self->param('fields')  // undef,
+  ];
+};
+
+get '/' => sub {
+  shift->render('index');
+};
+
+get '/packages' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $packages = $store->packages( @$filter );
+
+  $self->render( json => $packages );
+};
+
+get '/packages/count' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $packages = $store->packages_count( @$filter );
+
+  $self->render( json => $packages );
+};
+
+get '/packages/names' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $packages = $store->packages_names( @$filter );
+
+  $self->render( json => $packages );
+};
+
+get '/repos' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $repos = $store->repositories( @$filter );
+
+  $self->render( json => $repos );
+};
+
+get '/repo/:repoid/packages' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $packages = $store->packages( @$filter );
+
+  $self->render( json => $packages );
+};
+
+get '/repo/:repoid/packages/count' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $packages = $store->packages_count( @$filter );
+
+  $self->render( json => $packages );
+};
+
+get '/repo/:repoid/packages/names' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $packages = $store->packages_grouped_by_names( @$filter );
+
+  $self->render( json => $packages );
+};
+
+get '/repo/:repoid/package/:name' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $package = $store->package_details( @$filter );
+
+  $self->render( json => $package );
+};
+
+get '/repo/:repoid/package/:name/conflicts' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $package = $store->package_conflicts( @$filter );
+
+  $self->render( json => $package );
+};
+
+get '/repo/:repoid/package/:name/provides' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $package = $store->package_provides( @$filter );
+
+  $self->render( json => $package );
+};
+
+get '/repo/:repoid/package/:name/obsoletes' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $package = $store->package_obsoletes( @$filter );
+
+  $self->render( json => $package );
+};
+
+get '/repo/:repoid/package/:name/requires' => sub {
+  my $self = shift;
+  my $filter = $self->build_filter;
+
+  my $package = $store->package_requires( @$filter );
+
+  $self->render( json => $package );
+};
+
+any '*' => sub {
+  shift->redirect_to('/');
+};
+
+app->secret('yummo');
+app->start;

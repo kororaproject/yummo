@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>yummo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Open+Sans:300,300italic,600,700">;
+  <style>
+    body {
+      font-family: "Open Sans";
+    }
+    .page {
+      margin-top: 8px;
+    }
+    .container {
+    }
+    h1.title {
+      margin: 0;
+      font-size: 56px;
+      line-height: 48px;
+      text-align: center;
+    }
+    h1.title span {
+      color: #999;
+    }
+    h2.sub-title {
+      margin: 0;
+      font-size: 20px;
+      line-height: 20px;
+      font-style: italic;
+      text-align: center;
+    }
+    .banner {
+      margin-top: 32px;
+      margin-bottom: 16px;
+    }
+    p {
+      text-align: justify;
+    }
+    p.inline {
+      display: inline-block;
+    }
+    .footer p {
+      font-size: 10px;
+      line-height: 16px;
+    }
+    .route {
+      margin-bottom: 16px;
+    }
+    .callout {
+      margin: 20px 0;
+      padding: 20px;
+      border-left: 3px solid #eeeeee;
+    }
+    .callout .code,
+    .callout .highlight {
+    }
+    .callout h4 {
+      margin-top: 0;
+      margin-bottom: 5px;
+    }
+    .callout p:last-child {
+      margin-bottom: 0;
+    }
+
+    .callout-danger {
+      background-color: #fdf7f7;
+      border-color: #eed3d7;
+    }
+    .callout-danger h4 {
+      color: #b94a48;
+    }
+    .callout-warning {
+      background-color: #faf8f0;
+      border-color: #faebcc;
+    }
+    .callout-warning h4 {
+      color: #c09853;
+    }
+    .callout-info {
+      background-color: #f4f8fa;
+      border-color: #bce8f1;
+    }
+    .callout-info h4 {
+      color: #3a87ad;
+    }
+    .line {
+      margin-top: 16px;
+      border-top: 1px dashed #aaa;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-8 col-sm-offset-2">
+          <div class="banner">
+            <h1 class="title">yummo<span>.service</span></h1>
+            <h2 class="sub-title">"serving our yum repos online."</h2>
+          </div>
+          <p>The yummo RESTful service is part of the Korora Canvas infrastructure. We consider it in as alpha state and as such it's a work in progress. Plenty is missing, documentation in particular.</p>
+          <p>All data is returned as JSON. Basic filtering is available with <code>arch</code> and <code>release</code></p>
+          <p>Feel free to play with the API. We welcome all feedback for this open service.</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-8 col-sm-offset-2 line">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-8 col-sm-offset-2">
+          <h3>REST API</h3>
+          <p>A quick summary of some of the API routes are shown below.
+
+          <div class="route">
+            <h4>/repos</h4>
+            <p>Returns available list of repo-ids.</p>
+          </div>
+
+          <div class="route">
+            <h4>/repo/:repo-id/packages</h4>
+            <p>Returns all packages available for the specified <code>:repo-id</code>.</p>
+          </div>
+
+          <div class="route">
+            <h4>/packages</h4>
+            <p>Returns all packages available with respect to any applied filters.</p>
+          </div>
+
+          <div class="route">
+            <h4>/packages/count</h4>
+            <p>Returns total number of packages available with respect to any applied filters.</p>
+          </div>
+
+          <div class="route">
+            <h3>Repository Filters</h3>
+            <p>Repositories can be coarsely filtered with <code>repo</code>, <code>release</code> and <code>arch</code>.
+            <pre><code>GET /packages?repo=korora-19-x86_64</code></pre>
+          </div>
+
+          <div class="route">
+            <h3>Package Filters</h3>
+            <p>Packages can be filtered with <code>fields</code> parameter. Supply a comma seperated list of the from any of the following will define the fields returned: <code>name</code>, <code>arch</code>, <code>version</code>, <code>epoch</code>, <code>release</code>, <code>summary</code>, <code>url</code>, <code>time_file</code>, <code>time_build</code>, <code>rpm_license</code>, <code>rpm_vendor</code>, <code>rpm_group</code>, <code>rpm_buildhost</code>, <code>rpm_sourcerpm</code>, <code>rpm_packager</code>, <code>size_package</code>,<code>size_installed</code>, and <code>size_archive</code>.</p>
+            <pre><code>GET /packages?name=yum</code></pre>
+          </div>
+
+          <div class="route">
+            <h3>Package Fields</h3>
+            <p>You can select which package fields you want displayed by using the <code>fields</code> parameter. Supply a comma seperated list of the from any of the following will define the fields returned: <code>name</code>, <code>arch</code>, <code>version</code>, <code>epoch</code>, <code>release</code>, <code>summary</code>, <code>url</code>, <code>time_file</code>, <code>time_build</code>, <code>rpm_license</code>, <code>rpm_vendor</code>, <code>rpm_group</code>, <code>rpm_buildhost</code>, <code>rpm_sourcerpm</code>, <code>rpm_packager</code>, <code>size_package</code>,<code>size_installed</code>, and <code>size_archive</code>.</p>
+            <pre><code>GET /packages?repo=korora-19-x86_64&fields=name,version,release,epoch</code></pre>
+          </div>
+
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-8 col-sm-offset-2 line">
+        </div>
+      </div>
+      <div class="row footer">
+        <div class="col-sm-8 col-sm-offset-2">
+          <p class="inline footer">A <a href="https://www.kororaprojecct.org">KORORA PROJECT</a> INITIATIVE</p>
+          <p class="inline label label-danger pull-right">ALPHA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
