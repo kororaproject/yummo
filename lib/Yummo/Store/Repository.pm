@@ -188,7 +188,7 @@ sub packages {
 
       while( $sth->fetch ) {
         $packages->{$row_key} //= [];
-        push $packages->{$row_key}, $row_columns;
+        push @{ $packages->{$row_key} }, $row_columns;
       }
     }
 
@@ -223,7 +223,7 @@ sub package_details {
 
       while( $sth->fetch ) {
         $packages->{$row_key} //= [];
-        push $packages->{$row_key}, $row_columns;
+        push @{ $packages->{$row_key} }, $row_columns;
       }
     }
 
