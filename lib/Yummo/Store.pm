@@ -48,16 +48,22 @@ sub _filter_repos {
   my $self = shift;
   my %params = @_;
 
-  my @list = keys $self->{_repos};
+  my @list = keys %{ $self->{_repos} };
 
-  # check for explicit repo identifier
-  if( defined( $params{repoid} ) ) {
-    @list = grep { $self->{_repos}{$_}->id eq $params{repoid} } @list;
+  # check for explict repo identifier
+  if( defined( $params{repos} ) ) {
+    my @repos = split ',', $params{repos};
+    if( @repos ) {
+      my %r = map { $_ => 1 } @repos;
+
+      # unique intersection thanks to hash
+      @list = grep( $r{$_}, @list );
+    }
   }
 
-  # otherwise we're searching
+  # check for explicit repo identifier
   if( defined( $params{repo} ) ) {
-    @list = grep { index($self->{_repos}{$_}->name, $params{repo}) > -1 } @list;
+    @list = grep { $self->{_repos}{$_}->id eq $params{repo} } @list;
   }
 
   if( defined( $params{arch} ) ) {
@@ -167,7 +173,7 @@ sub packages {
     my $p = $self->{_repos}{ $r }->packages( %params );
 
     # merge results from all repositories
-    foreach my $n ( keys $p ) {
+    foreach my $n ( keys %$p ) {
       $packages->{$n} //= [];
       push @{ $packages->{$n} }, @{ $p->{$n} };
     }
@@ -184,7 +190,7 @@ sub package_details {
   foreach my $r ( @{ $self->_filter_repos( %params ) } ) {
     my $p = $self->{_repos}{ $r }->package_details( %params );
     # merge results from all repositories
-    foreach my $n ( keys $p ) {
+    foreach my $n ( keys %$p ) {
       $packages->{$n} //= [];
       push @{ $packages->{$n} }, @{ $p->{$n} };
     }

@@ -39,8 +39,8 @@ helper build_filter => sub {
   my $self = shift;
 
   return [
-    repoid   => $self->param('repoid')  // undef,
     repo     => $self->param('repo')    // undef,
+    repos    => $self->param('repos')   // undef,
 
     arch     => $self->param('arch')    // undef,
     release  => $self->param('release') // undef,
@@ -90,7 +90,7 @@ get '/repos' => sub {
   $self->render( json => $repos );
 };
 
-get '/repo/:repoid/packages' => sub {
+get '/repo/:repo/packages' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -99,7 +99,7 @@ get '/repo/:repoid/packages' => sub {
   $self->render( json => $packages );
 };
 
-get '/repo/:repoid/packages/count' => sub {
+get '/repo/:repo/packages/count' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -108,7 +108,7 @@ get '/repo/:repoid/packages/count' => sub {
   $self->render( json => $packages );
 };
 
-get '/repo/:repoid/packages/names' => sub {
+get '/repo/:repo/packages/names' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -117,7 +117,7 @@ get '/repo/:repoid/packages/names' => sub {
   $self->render( json => $packages );
 };
 
-get '/repo/:repoid/package/:name' => sub {
+get '/repo/:repo/package/:name' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -126,7 +126,7 @@ get '/repo/:repoid/package/:name' => sub {
   $self->render( json => $package );
 };
 
-get '/repo/:repoid/package/:name/conflicts' => sub {
+get '/repo/:repo/package/:name/conflicts' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -135,7 +135,7 @@ get '/repo/:repoid/package/:name/conflicts' => sub {
   $self->render( json => $package );
 };
 
-get '/repo/:repoid/package/:name/provides' => sub {
+get '/repo/:repo/package/:name/provides' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -144,7 +144,7 @@ get '/repo/:repoid/package/:name/provides' => sub {
   $self->render( json => $package );
 };
 
-get '/repo/:repoid/package/:name/obsoletes' => sub {
+get '/repo/:repo/package/:name/obsoletes' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -153,7 +153,7 @@ get '/repo/:repoid/package/:name/obsoletes' => sub {
   $self->render( json => $package );
 };
 
-get '/repo/:repoid/package/:name/requires' => sub {
+get '/repo/:repo/package/:name/requires' => sub {
   my $self = shift;
   my $filter = $self->build_filter;
 
@@ -165,6 +165,12 @@ get '/repo/:repoid/package/:name/requires' => sub {
 any '*' => sub {
   shift->redirect_to('/');
 };
+
+app->config(hypnotoad => {
+  listen    => ['http://localhost:31001'],
+  lock_file => '/var/lock/subsys/yummod.lock',
+  pid_file  => '/var/run/yummod.pid'
+});
 
 app->secret('yummo');
 app->start;

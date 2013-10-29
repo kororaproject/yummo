@@ -17,6 +17,7 @@ use Mojo::UserAgent;
 use Data::Dumper;
 
 $ENV{MOJO_MAX_MESSAGE_SIZE} = 1073741824;
+my $NO_SSL = $ENV{NO_SSL} // 0;
 
 my $ua = Mojo::UserAgent->new();
 
@@ -30,13 +31,13 @@ my $REPOS = {
     releases => [18, 19]
   },
   'fedora' => {
-    url => 'https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch',
+    url => 'http://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch',
     type => 'mirror-xml',
     archs => ['i386', 'x86_64'],
     releases => [18, 19]
   },
   'fedora-updates' => {
-    url => 'https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch',
+    url => 'http://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch',
     type => 'mirror-xml',
     archs => ['i386', 'x86_64'],
     releases => [18, 19]
@@ -293,12 +294,21 @@ foreach my $repo ( keys %$REPOS ) {
       $url =~ s/\$releasever/$release/g;
       $url =~ s/\$basearch/$arch/g;
 
+      $url =~ s/^https/http/ if $NO_SSL;
+
       my $repomd = $url . "repodata/repomd.xml";
+      my $attempt = 10;
 
       if( $r->{type} eq 'mirror-xml' ) {
-        my $tx = $ua->get($url);
-
-        say 'Fetching XML mirror list: ' . $url . " (" . $tx->res->code . ")";
+        say 'Fetching XML mirror list: ' . $url;
+        
+        my $code = undef;
+        my $tx;
+	while( $attempt-- > 0 && ! defined $code ) {
+	  $tx = $ua->get($url);
+          $code = $tx->res->code;
+          say " - " . $code;
+        }
 
         my $dom = $tx->res->dom;
         $dom->xml(1);
@@ -327,6 +337,8 @@ foreach my $repo ( keys %$REPOS ) {
           $repomd = $1 . "repodata/repomd.xml";
         }
       }
+
+      $repomd =~ s/^https/http/ if $NO_SSL;
 
       say 'Fetching repomd.xml: ' . $repomd;
 
@@ -363,6 +375,8 @@ foreach my $repo ( keys %$REPOS ) {
 
         say 'Creating path: ' . $db_dir;
         make_path $db_dir;
+      
+        $db_url =~ s/^https/http/ if $NO_SSL;
 
         # check if we have the bz2
         unless( -r $db_bz2_path ) {
