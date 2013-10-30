@@ -238,7 +238,7 @@ sub packages {
         rp => $self->id
       };
 
-      $sth->bind_columns( \$row_key, map { \$row_columns->{ PACKAGE_FIELDS_ABBREVIATION_MAP->{$_} } } @$fields[1..$#$fields] );
+      $sth->bind_columns( \$row_key, map { \$row_columns->{ PACKAGE_FIELDS_ABBREVIATION_MAP->{$_} // $_ } } @$fields[1..$#$fields] );
 
       while( $sth->fetch ) {
         push @$packages, { $row_key => $row_columns };

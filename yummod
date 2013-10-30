@@ -98,18 +98,6 @@ get '/repos' => sub {
   $self->render( json => $repos );
 };
 
-get '/repo/:repo/packages' => sub {
-  my $self = shift;
-  # set default fields to summative information only
-  my $filter = $self->build_filter(
-    fields => "pkgKey,epoch,version,arch,release,time_build,time_file,size_installed,size_package,size_archive"
-  );
-
-  my $packages = $store->packages( @$filter );
-
-  $self->render( json => $packages );
-};
-
 get '/repo/:repo/packages/count' => sub {
   my $self = shift;
   my $filter = $self->build_filter;

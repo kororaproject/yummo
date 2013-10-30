@@ -188,10 +188,10 @@ sub packages {
   # if not found, then let's generate
   if( ! defined $packages ) {
     $packages = {
+      item_count  => 0,
+      items       => [],
       page_size   => $params{page_size},
       page        => $params{page},
-      items       => [],
-      items_count => 0,
     };
 
     my $offset = $params{page_size} * $params{page};
@@ -204,7 +204,7 @@ sub packages {
       my( $count, $p ) = $self->{_repos}{ $r }->packages( %params );
 
       # increment our total availability count
-      $packages->{items_count} += $count;
+      $packages->{item_count} += $count;
 
       # merge results from all repositories
       push @{ $packages->{items} }, @$p;
