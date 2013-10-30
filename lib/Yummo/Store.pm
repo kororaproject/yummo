@@ -20,6 +20,12 @@ package Yummo::Store;
 use warnings;
 use strict;
 
+use feature ':5.10';
+
+#
+# PERL INCLUDES
+#
+use Cache::FastMmap;
 use Data::Dumper;
 
 use Yummo::Store::Repository;
@@ -33,6 +39,11 @@ sub new {
 
   my $self = {
     _repos => {},
+    _cache => Cache::FastMmap->new(
+      share_file => '/tmp/yummo-cache-file',
+      page_size => '16m',
+      num_pages => '89',
+    ),
   };
 
   bless $self, $class;
@@ -167,33 +178,44 @@ sub packages_count {
 sub packages {
   my $self = shift;
   my %params = @_;
-  my $packages = {};
 
-  foreach my $r ( @{ $self->_filter_repos( %params ) } ) {
-    my $p = $self->{_repos}{ $r }->packages( %params );
+  # TODO: improve cache key
+  my $cache_key = join ',', map { $_ // "" } %params;
 
-    # merge results from all repositories
-    foreach my $n ( keys %$p ) {
-      $packages->{$n} //= [];
-      push @{ $packages->{$n} }, @{ $p->{$n} };
+  # check cache first
+  my $packages = $self->{_cache}->get( $cache_key );
+
+  # if not found, then let's generate
+  if( ! defined $packages ) {
+    $packages = {
+      page_size   => $params{page_size},
+      page        => $params{page},
+      items       => [],
+      items_count => 0,
+    };
+
+    my $offset = $params{page_size} * $params{page};
+    my $items_remaining = $params{page_size};
+
+    foreach my $r ( @{ $self->_filter_repos( %params ) } ) {
+      $params{_offset} = $offset > 0 ? $offset : 0;
+      $params{_items_remaining} = $items_remaining;
+
+      my( $count, $p ) = $self->{_repos}{ $r }->packages( %params );
+
+      # increment our total availability count
+      $packages->{items_count} += $count;
+
+      # merge results from all repositories
+      push @{ $packages->{items} }, @$p;
+
+      # decrement items left to fetch
+      $items_remaining -= scalar @$p;
+      $offset -= $count;
     }
-  }
 
-  return $packages;
-}
-
-sub package_details {
-  my $self = shift;
-  my %params = @_;
-  my $packages = {};
-
-  foreach my $r ( @{ $self->_filter_repos( %params ) } ) {
-    my $p = $self->{_repos}{ $r }->package_details( %params );
-    # merge results from all repositories
-    foreach my $n ( keys %$p ) {
-      $packages->{$n} //= [];
-      push @{ $packages->{$n} }, @{ $p->{$n} };
-    }
+    # set our cache value
+    $self->{_cache}->set( $cache_key, $packages );
   }
 
   return $packages;

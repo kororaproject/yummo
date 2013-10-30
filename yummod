@@ -37,16 +37,21 @@ Mojo::IOLoop->recurring(3600 => sub {
 
 helper build_filter => sub {
   my $self = shift;
+  my %defaults = @_;
 
   return [
-    repo     => $self->param('repo')    // undef,
-    repos    => $self->param('repos')   // undef,
+    repo      => $self->param('repo')       // undef,
+    repos     => $self->param('repos')      // undef,
 
-    arch     => $self->param('arch')    // undef,
-    release  => $self->param('release') // undef,
-    name     => $self->param('name')    // undef,
+    arch      => $self->param('arch')       // undef,
+    release   => $self->param('release')    // undef,
+    name      => $self->param('name')       // undef,
+    name_like => $self->param('name_like')  // undef,
 
-    fields   => $self->param('fields')  // undef,
+    fields    => $self->param('fields')     // $defaults{fields} // undef,
+
+    page      => $self->param('page')       // 0,
+    page_size => $self->param('page_size')  // 1000,
   ];
 };
 
@@ -56,7 +61,10 @@ get '/' => sub {
 
 get '/packages' => sub {
   my $self = shift;
-  my $filter = $self->build_filter;
+  # set default fields to summative information only
+  my $filter = $self->build_filter(
+    fields => "pkgKey,epoch,version,arch,release,time_build,time_file,size_installed,size_package,size_archive"
+  );
 
   my $packages = $store->packages( @$filter );
 
@@ -92,7 +100,10 @@ get '/repos' => sub {
 
 get '/repo/:repo/packages' => sub {
   my $self = shift;
-  my $filter = $self->build_filter;
+  # set default fields to summative information only
+  my $filter = $self->build_filter(
+    fields => "pkgKey,epoch,version,arch,release,time_build,time_file,size_installed,size_package,size_archive"
+  );
 
   my $packages = $store->packages( @$filter );
 
@@ -119,9 +130,12 @@ get '/repo/:repo/packages/names' => sub {
 
 get '/repo/:repo/package/:name' => sub {
   my $self = shift;
-  my $filter = $self->build_filter;
+  # set default fields for verbose package details
+  my $filter = $self->build_filter(
+    fields => "name,pkgKey,pkgId,arch,version,epoch,release,summary,description,url,time_file,time_build,rpm_license,rpm_vendor,rpm_group,rpm_buildhost,rpm_sourcerpm,rpm_header_start,rpm_header_end,rpm_packager,size_package,size_installed,size_archive,location_href,location_base,checksum_type"
+  );
 
-  my $package = $store->package_details( @$filter );
+  my $package = $store->packages( @$filter );
 
   $self->render( json => $package );
 };

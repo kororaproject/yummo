@@ -4,7 +4,7 @@
   <title>yummo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
-  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Open+Sans:300,300italic,600,700">;
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Open+Sans:300,300italic,600,700">
   <style>
     body {
       font-family: "Open Sans";
@@ -89,6 +89,14 @@
       border-top: 1px dashed #aaa;
       margin-bottom: 8px;
     }
+    ul.abbreviation-list {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    ul.abbreviation-list li span.keyword {
+      display: inline-block;
+      width: 128px;
+    }
   </style>
 </head>
 <body>
@@ -111,22 +119,68 @@
       </div>
       <div class="row">
         <div class="col-sm-8 col-sm-offset-2">
-          <h3>REST API</h3>
+          <h3>What does it do?</h3>
           <p>A quick summary of some of the API routes are shown below.
 
           <div class="route">
             <h4>/repos</h4>
-            <p>Returns available list of repo-ids.</p>
+            <p>Returns available list of yummo aware repo ids.</p>
+            <pre><code>GET /repos
+[
+  "google-chrome-18-i386",
+  "rpmfusion-nonfree-updates-18-x86_64",
+  "korora-19-i386",
+  ...
+]</code></pre>
           </div>
 
           <div class="route">
             <h4>/repo/:repo/packages</h4>
-            <p>Returns all packages available for the specified <code>:repo</code>.</p>
+            <p>Returns a paginated collection of packages available for the specified <code>:repo</code>.</p>
+            <pre><code>GET /repo/korora-19-i386/packages
+{
+  "page_size": 1000,
+  "page": 0,
+  "items_count": 205,
+  "items": [
+    {
+      "HandBrake-cli": {
+        "si": 1939,
+        "sp": 4796,
+        "e": "0",
+        "r": "2.fc19",
+        "a": "noarch",
+        "pk": 205,
+        "v": "1.0",
+        "tf": 1378510714,
+        "tb": 1378510419,
+        "sa": 2364,
+        "rp": "korora-19-i386"
+      }
+    },
+    {
+      "HandBrake-debuginfo": {
+        "si": 1939,
+        "sp": 4796,
+        "e": "0",
+        "r": "2.fc19",
+        "a": "noarch",
+        "pk": 205,
+        "v": "1.0",
+        "tf": 1378510714,
+        "tb": 1378510419,
+        "sa": 2364,
+        "rp": "korora-19-i386"
+      }
+    },
+    ...
+  ]
+}</code></pre>
           </div>
 
           <div class="route">
             <h4>/packages</h4>
-            <p>Returns all packages available with respect to any applied filters.</p>
+            <p>Returns a paginated collection of packages available with respect to any applied filters.</p>
           </div>
 
           <div class="route">
@@ -152,6 +206,13 @@
             <pre><code>GET /packages?repos=korora-19-x86_64&fields=name,version,release,epoch</code></pre>
           </div>
 
+          <div class="route">
+            <h3>Field Abbreviation</h3>
+            <p>For the sake of brevity and efficiency, field names are abbreviated in the resulting JSON.</p>
+            <p>A tranlsation of the field abbreviations is shown below:</p>
+            <ul>
+            </ul>
+          </div>
         </div>
       </div>
       <div class="row">

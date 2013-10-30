@@ -20,6 +20,8 @@ package Yummo::Store::Repository;
 use warnings;
 use strict;
 
+use feature ':5.10';
+
 #
 # PERL INCLUDES
 #
@@ -31,6 +33,35 @@ use DBI;
 #
 use constant PACKAGE_FIELDS_ALL => qw(pkgKey pkgId arch version epoch release summary description url time_file time_build rpm_license rpm_vendor rpm_group rpm_buildhost rpm_sourcerpm rpm_header_start rpm_header_end rpm_packager size_package size_installed size_archive location_href location_base checksum_type);
 use constant PACKAGE_FIELDS_MIN => qw(pkgKey pkgId arch version epoch release);
+use constant PACKAGE_FIELDS_ABBREVIATION_MAP => {
+  pkgKey            => 'pk',
+  pkgId             => 'pi',
+  name              => 'n',
+  arch              => 'a',
+  version           => 'v',
+  epoch             => 'e',
+  release           => 'r',
+  summary           => 's',
+  description       => 'd',
+  url               => 'u',
+  time_file         => 'tf',
+  time_build        => 'tb',
+  rpm_license       => 'rl',
+  rpm_vendor        => 'rv',
+  rpm_group         => 'rg',
+  rpm_buildhost     => 'rbh',
+  rpm_sourcerpm     => 'rsr',
+  rpm_header_start  => 'rhs',
+  rpm_header_end    => 'rhe',
+  rpm_packager      => 'rp',
+  size_package      => 'sp',
+  size_installed    => 'si',
+  size_archive      => 'sa',
+  location_href     => 'lr',
+  location_base     => 'lb',
+  checksum_type     => 'ct',
+  # repo            => 'rp',
+};
 
 #
 # CONSTRUCTOR
@@ -111,6 +142,11 @@ sub _build_filter {
     push @filter, "(p.name='" . $params{name} . "')";
   }
 
+  # name_like
+  if( defined( $params{name_like} ) ) {
+    push @filter, "(p.name LIKE '%" . $params{name_like} . "%')";
+  }
+
   # create joined filter
   my $filter = join('AND', @filter);
   $filter = " WHERE " . $filter if length( $filter );
@@ -166,71 +202,53 @@ sub packages {
   my $self = shift;
   my %params = @_;
 
-  $params{fields} //= "pkgKey,epoch,version,arch,release,time_build,time_file,size_installed,size_package,size_archive";
-
   my $filter = $self->_build_filter( %params );
-  my $fields = [ _uniq('name', @{ $self->_build_fields( %params ) } ) ];
 
-  my $packages = {};
+  my $packages = [];
+  my $count = 0;
 
   if( $self->{_h} ) {
-    my $sth = $self->{_h}->prepare('SELECT ' . join( ',', map { "p.".$_ } @$fields ) . ' FROM packages AS p' . $filter) or die $self->{_h}->errstr;
-
+    # determine item count
+    my $sth = $self->{_h}->prepare('SELECT COUNT(pkgKey) FROM packages AS p '. $filter);
     my $rv = $sth->execute;
+
+    if( $rv ) {
+      $count = scalar $sth->fetchrow_arrayref->[0];
+      $sth->finish;
+    }
+
+    # return early if nothing meaningful to add
+    if( $count == 0 || $params{_items_remaining} <= 0 || $params{_offset} > $count ) {
+      return ( $count, $packages );
+    }
+
+    # set default fields
+    my $fields = [ _uniq('name', @{ $self->_build_fields( %params ) } ) ];
+
+    my $pager = " LIMIT " . $params{_items_remaining} . " OFFSET " . $params{_offset};
+
+    # let's get the real data
+    $sth = $self->{_h}->prepare('SELECT ' . join( ',', map { "p.".$_ } @$fields ) . ' FROM packages AS p' . $filter . $pager) or die $self->{_h}->errstr;
+
+    $rv = $sth->execute;
 
     if( $rv ) {
       my $row_key;
       my $row_columns = {
-        repo => $self->id
+        rp => $self->id
       };
 
-      $sth->bind_columns( \$row_key, map { \$row_columns->{$_} } @$fields[1..$#$fields] );
+      $sth->bind_columns( \$row_key, map { \$row_columns->{ PACKAGE_FIELDS_ABBREVIATION_MAP->{$_} } } @$fields[1..$#$fields] );
 
       while( $sth->fetch ) {
-        $packages->{$row_key} //= [];
-        push @{ $packages->{$row_key} }, %{ $row_columns };
+        push @$packages, { $row_key => $row_columns };
       }
     }
 
     $sth->finish;
   }
 
-  return $packages;
-}
-
-sub package_details {
-  my $self = shift;
-  my %params = @_;
-
-  $params{fields} //= "name,pkgKey,pkgId,arch,version,epoch,release,summary,description,url,time_file,time_build,rpm_license,rpm_vendor,rpm_group,rpm_buildhost,rpm_sourcerpm,rpm_header_start,rpm_header_end,rpm_packager,size_package,size_installed,size_archive,location_href,location_base,checksum_type";
-
-  my $filter = $self->_build_filter( %params );
-  my $fields = [ _uniq('name', @{ $self->_build_fields( %params ) } ) ];
-  my $packages = {};
-
-  if( $self->{_h} ) {
-    my $sth = $self->{_h}->prepare('SELECT ' . join( ',', map { "p.".$_ } @$fields ) .' FROM packages AS p' . $filter) or die $self->{_h}->errstr;
-
-    my $rv = $sth->execute;
-
-    if( $rv ) {
-      my $row_key;
-      my $row_columns = {
-        repo => $self->id
-      };
-
-      $sth->bind_columns( \$row_key, map { \$row_columns->{$_} } @$fields[1..$#$fields] );
-
-      while( $sth->fetch ) {
-        $packages->{$row_key} //= [];
-        push @{ $packages->{$row_key} }, %{ $row_columns };
-      }
-    }
-
-    $sth->finish;
-  }
-
-  return $packages;
+  return ( $count, $packages );
 }
 
 sub package_conflicts {
