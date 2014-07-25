@@ -1,0 +1,271 @@
+#!/usr/bin/perl
+
+use Mojo -base;
+
+use Data::Dumper;
+use Data::Rmap;
+use File::Path qw(make_path);
+use File::Spec;
+use FindBin;
+use IO::Uncompress::Gunzip qw(gunzip);
+use Mango;
+use Mojo::DOM;
+use Mojo::Util 'slurp';
+use Mojolicious;
+use Time::Piece;
+
+#
+# HELPERS
+#
+sub import_xml_to_db {
+  my $mango = shift;
+  my $file = shift;
+  my $repo = shift;
+
+  return unless -r $file;
+  return unless ref $repo eq 'HASH';
+
+  my $ts = time;
+
+  # slurp up the file contents
+  say " - Slurping $file ...";
+
+  my $dom = Mojo::DOM->new->parse( slurp $file );
+  $dom->xml(1);
+
+  say sprintf " - Slurped in %d seconds", ( time - $ts );
+
+  my $bulk  = Mango::Bulk->new( collection => $mango->db('yummo')->collection('packages') );
+  my $repos = $mango->db('yummo')->collection('repositories');
+
+  # process each package for insertion
+  $ts = time;
+
+  my $count = 0;
+  foreach my $pk ( $dom->find('package')->each ) {
+    my $doc = {
+      repo        => $repo,
+      name        => $pk->at('name')->text,
+      version     => $pk->at('version')->attr,
+      summary     => $pk->at('summary')->text,
+      description => $pk->at('description')->text,
+      url         => $pk->at('url')->text,
+      time        => $pk->at('time')->attr,
+      location    => $pk->at('location')->attr,
+      packager    => $pk->at('packager')->text,
+      size        => $pk->at('size')->attr,
+      checksum => {
+        $pk->at('checksum')->{type} => $pk->at('checksum')->text,
+      },
+      format => {
+        rpm_license   => $pk->at('format > rpm\:license')->text,
+        rpm_vendor    => $pk->at('format > rpm\:vendor')->text,
+        rpm_group     => $pk->at('format > rpm\:group')->text,
+        rpm_buildhost => $pk->at('format > rpm\:buildhost')->text,
+        rpm_header_range => $pk->at('format > rpm\:header-range')->attr,
+        provides => [ map { $_->attr } $pk->find('rpm\:provides > rpm\:entry')->each ],
+        requires => [ map { $_->attr } $pk->find('rpm\:requires > rpm\:entry')->each ],
+        files    => [ map { $_->text } $pk->find('format > file')->each ],
+      },
+    };
+
+    # force timestamps and byte size values to numbers
+    rmap_all { $_+=0 if /^\d+$/} $doc->{time}, $doc->{size}, $doc->{format}{rpm_header_range};
+
+    my $src_rpm = $pk->at('format > rpm\:sourcerpm');
+    $doc->{format}{rpm_sourcerpm} = $src_rpm->text if $src_rpm;
+
+    $bulk->insert($doc);
+
+    $count++;
+  }
+
+  undef $dom;
+
+  # configure removal of previous entries not updated
+  $bulk->find({
+   "repo.name"        => $repo->{name},
+   "repo.releasever"  => $repo->{releasever},
+   "repo.basearch"    => $repo->{basearch},
+   "repo.checksum"    => { '$ne' => $repo->{checksum} },
+  })->remove;
+
+  # build repos
+  $repos->update(
+    { name => $repo->{name}, releasever => $repo->{releasever}, basearch => $repo->{basearch} },
+    $repo,
+    { upsert => 1 }
+  );
+
+  # execute
+  my $res = $bulk->execute;
+
+  undef $bulk;
+  say sprintf " - %d/%d packages found/inserted in %d seconds. %d were cleaned.", $count, $res->{nInserted}, ( time - $ts ), $res->{nRemoved};
+}
+
+$ENV{MOJO_MAX_MESSAGE_SIZE} = 1073741824;
+my $NO_SSL = $ENV{YUMMO_NO_SSL} // 0;
+
+#
+# CONFIG
+#
+my $app = Mojolicious->new;
+my $config_file = File::Spec->catfile( $FindBin::Bin, 'yummo.conf' );
+my $config = $app->plugin('JSONConfig' => { file => $config_file });
+my $mango = Mango->new( $config->{db}{url} );
+
+my $ua = Mojo::UserAgent->new();
+
+#
+# PROCESS
+#
+
+my $ts = time;
+
+foreach my $repo ( sort keys %{$config->{repos}} ) {
+  my $r = $config->{repos}{ $repo };
+
+  foreach my $releasever ( @{ $r->{releases} } ) {
+    foreach my $basearch ( @{ $r->{basearchs} } ) {
+
+      say 'Processing ' . join('-', $repo, $releasever, $basearch) . " ...";
+
+      my $url = $r->{"url_$basearch"} // $r->{url};
+
+      # fill in variables
+      $url =~ s/\$releasever/$releasever/g;
+      $url =~ s/\$basearch/$basearch/g;
+      $url =~ s/^https/http/ if $NO_SSL;
+
+      my $url_repomd_base = $url;
+      my $attempt = 10;
+
+      if( $r->{type} eq 'mirror-xml' ) {
+        say ' - Fetching XML mirror list: ' . $url;
+
+        my $tx;
+
+        while( $attempt-- > 0 ) {
+          $tx = $ua->get($url);
+
+          last if $tx->success;
+
+          my $err = $tx->error;
+          say sprintf " - %s error: %s. Retries left: %d", $err->{code} // "Connection", $err->{message}, $attempt;
+        }
+
+        my $dom = $tx->res->dom;
+        $dom->xml(1);
+
+        foreach my $f ( $dom->find('files file')->each ) {
+          # we only care for the repomd.xml file
+          next unless $f->{name} eq 'repomd.xml';
+
+          foreach my $u ( $f->find('resources url')->each ) {
+            next unless $u->{protocol} eq 'http';
+
+            # we take the first hit due to priority sorting
+            $url_repomd_base = $u->text;
+
+            last;
+          }
+        }
+
+        if( $tx->error ) {
+          say " - Skipping ...\n";
+          next;
+        }
+
+        say " - Not yet implemented.\n";
+      }
+      elsif( $r->{type} eq 'mirror-plain' ) {
+        say ' - Fetching PLAIN mirror list: ' . $url;
+
+        my $tx;
+
+        while( $attempt-- > 0 ) {
+          $tx = $ua->get($url);
+
+          last if $tx->success;
+
+          my $err = $tx->error;
+          say sprintf " - %s error: %s. Retries left: %d", $err->{code} // "Connection", $err->{message}, $attempt;
+        }
+
+        if( $tx->error ) {
+          say " - Skipping ...\n";
+          next;
+        }
+
+        # TODO: this has changed in later MOJO versions, HACK for now
+        $url_repomd_base = $1 if $tx->res->to_string =~ m/^(http:.*)$/m;
+      }
+
+      $url_repomd_base =~ s/^https/http/ if $NO_SSL;
+      my $url_repomd = $url_repomd_base . "repodata/repomd.xml";
+
+      say ' - Fetching repomd.xml: ' . $url_repomd;
+
+      my $tx = $ua->get( $url_repomd );
+      my $dom = $tx->res->dom;
+      $dom->xml(1);
+
+      my $primary = $dom->at('data[type="primary"]');
+      next unless $primary;
+
+      my $db_checksum = $primary->at('checksum')->text;
+      my $db_href = $primary->at('location')->{href};
+      my $db_url = Mojo::URL->new( $url_repomd_base )->path( $db_href );
+
+      # setup destination file
+      my $path = $config->{cache}{path};
+      my $xml_dir     = File::Spec->catfile($path, $repo, $basearch, $releasever);
+      my $xml_gz_path = File::Spec->catfile($xml_dir, $db_checksum . ".xml.gz");
+      my $xml_path    = File::Spec->catfile($xml_dir, $db_checksum . ".xml");
+      my @existing    = < "$xml_dir/*.xml.gz" >;
+
+      # check if we already have it
+      unless( -r $xml_gz_path ) {
+        say ' - Creating path: ' . $xml_dir;
+        make_path $xml_dir;
+
+        # check if we have the gz
+        unless( -r $xml_gz_path ) {
+          # download file
+          say ' - Downloading: ' . $db_url;
+          my $tx = $ua->get($db_url);
+
+          say ' - Moving to: ' . $xml_gz_path;
+          $tx->res->content->asset->move_to( $xml_gz_path );
+          undef $tx;
+        }
+
+        # decompress
+        say ' - Decompressing: ' . $xml_gz_path;
+        gunzip $xml_gz_path => $xml_path;
+
+        # importing
+        say ' - Importing: ' . $xml_path;
+        import_xml_to_db($mango, $xml_path => {
+          name       => $repo,
+          releasever => $releasever,
+          basearch   => $basearch,
+          checksum   => $db_checksum,
+        });
+
+        # cleanup and only keep most recent gzip'd xml for reference
+        say ' - Cleaning';
+        unlink $xml_path;
+        unlink @existing;
+
+        say " - Done\n"
+      }
+      else {
+        say " - Already have latest\n";
+      };
+    }
+  }
+}
+
+say sprintf "Update completed in %d seconds.", (time - $ts);

@@ -3,7 +3,7 @@
 <head>
   <title>yummo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
   <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Open+Sans:300,300italic,600,700">
   <style>
     body {
@@ -16,7 +16,7 @@
     }
     h1.title {
       margin: 0;
-      font-size: 56px;
+      font-size: 48px;
       line-height: 48px;
       text-align: center;
     }
@@ -24,24 +24,25 @@
       color: #999;
     }
     h2.sub-title {
-      margin: 0;
       font-size: 20px;
-      line-height: 20px;
       font-style: italic;
+      line-height: 20px;
+      margin: 0;
       text-align: center;
     }
     .banner {
-      margin-top: 32px;
       margin-bottom: 16px;
+      margin-top: 32px;
     }
     p {
+      font-size: 16px;
       text-align: justify;
     }
     p.inline {
       display: inline-block;
     }
     .footer p {
-      font-size: 10px;
+      font-size: 12px;
       line-height: 16px;
     }
     .route {
@@ -111,12 +112,10 @@
       <div class="row">
         <div class="col-sm-8 col-sm-offset-2">
           <div class="banner">
-            <h1 class="title">yummo<span>.service</span></h1>
-            <h2 class="sub-title">"serving our yum repos online."</h2>
+            <h1 class="title">yummo<span>.kororaproject.org</span></h1>
           </div>
-          <p>The yummo RESTful service is part of the Korora Canvas infrastructure. We consider it in a developmental state.</p>
-          <p>All data is returned as JSON.</p>
-          <p>Feel free to play with the API. We welcome all feedback for this open service.</p>
+          <p>The <i>yummo</i> RESTful service is part of the Korora Project infrastructure. We consider it in an alpha product.</p>
+          <p>All data is returned as JSON. Feel free to play with the API. We welcome all feedback for this open service.</p>
         </div>
       </div>
       <div class="row">
@@ -130,168 +129,150 @@
 
           <div class="route">
             <h4>GET /repos</h4>
-            <p>Returns available list of yummo aware repo ids.</p>
+            <p>Returns available list of yummo aware repositories.</p>
             <pre><code>GET /repos
-[
-  "google-chrome-18-i386",
-  "rpmfusion-nonfree-updates-18-x86_64",
-  "korora-19-i386",
-  ...
-]</code></pre>
+{
+  repositories: [
+    {
+      _id: "53a5881cff13049db636d317",
+      releasever: 19,
+      basearch: "i386",
+      name: "adobe",
+      checksum: "d28c458604a02833a288b0aaa9a0795ec95ae74f"
+    },
+    {
+      _id: "53a5881dff13049db636d318",
+      releasever: 19,
+      basearch: "x86_64",
+      name: "adobe",
+      checksum: "9bfdd3163d3307c0592359cc86bc0c83d9c3ccf6"
+    },
+    ...
+  ]
+}
+</code></pre>
           </div>
 
           <div class="route">
             <h4>GET /packages</h4>
             <p>Returns a paginated collection of packages available with respect to any applied filters.</p>
-            <pre><code>GET /repo/korora-19-i386/packages
+            <pre><code>GET /packages
 {
-  "page_size": 1000,
-  "page": 0,
-  "items_count": 205,
-  "items": [
-    {
-      "HandBrake-cli": {
-        "si": 1939,
-        "sp": 4796,
-        "e": "0",
-        "r": "2.fc19",
-        "a": "noarch",
-        "pk": 205,
-        "v": "1.0",
-        "tf": 1378510714,
-        "tb": 1378510419,
-        "sa": 2364,
-        "rp": "korora-19-i386"
-      }
+  "meta": {
+    "pages": {
+      "current": 0,
+      "size": 256,
     },
+    "count": 227456,
+  },
+  "packages": [
     {
-      "HandBrake-debuginfo": {
-        "si": 1939,
-        "sp": 4796,
-        "e": "0",
-        "r": "2.fc19",
-        "a": "noarch",
-        "pk": 205,
-        "v": "1.0",
-        "tf": 1378510714,
-        "tb": 1378510419,
-        "sa": 2364,
-        "rp": "korora-19-i386"
+      "name": "adobe-release-i386",
+      "version": {
+        "epoch": "0"
+        "ver":   "1.0",
+        "rel":   "1",
+      },
+      "checksum": {
+        "sha": "f3efc5423de376055818106bdf9b991f66bb28b0"
+      },
+      "description": "linuxdownload.adobe.com repository contains RPM packages of Adobe Linux Software",
+      "location": {
+        "href": "adobe-release-i386-1.0-1.noarch.rpm"
+      },
+      "packager": "Adobe Systems Inc.",
+      "repo": {
+        "name":       "adobe",
+        "releasever": 19,
+        "checksum":   "d28c458604a02833a288b0aaa9a0795ec95ae74f",
+        "basearch":   "i386"
+      },
+      "size": {
+        "archive":   2336,
+        "installed": 1905
+        "package":   4368,
+      },
+      "summary": "linux.adobe.com Repository Configuration",
+      "time": {
+        "build": 1185403940,
+        "file":  1291053983
+      },
+      "url": "http://linuxdownload.adobe.com/",
+      "format": {
+        "rpm_license": "BSD",
+        "rpm_header_range": {
+          "start": 440,
+          "end": 2776
+        },
+        "rpm_buildhost": "mtilburg-rh4.macromedia.com",
+        "rpm_group": "System Environment/Base",
+        "rpm_sourcerpm": "adobe-release-i386-1.0-1.src.rpm",
+        "rpm_vendor": "Adobe Systems Inc.",
+        "requires": [
+          {
+            "pre": "1",
+            "name": "/bin/sh"
+          },
+          {
+            "name": "config(adobe-release-i386)",
+            "epoch": "0",
+            "flags": "EQ",
+            "rel": "1",
+            "ver": "1.0"
+          },
+          {
+            "epoch": "0",
+            "name": "rpmlib(PayloadFilesHavePrefix)",
+            "pre": "1",
+            "ver": "4.0",
+            "flags": "LE",
+            "rel": "1"
+          },
+          {
+            "flags": "LE",
+            "rel": "1",
+            "ver": "3.0.4",
+            "pre": "1",
+            "epoch": "0",
+            "name": "rpmlib(CompressedFileNames)"
+          }
+        ],
+        "provides": [
+          {
+            "name": "config(adobe-release-i386)",
+            "epoch": "0",
+            "rel": "1",
+            "flags": "EQ",
+            "ver": "1.0"
+          },
+          {
+            "epoch": "0",
+            "name": "adobe-release-i386",
+            "ver": "1.0",
+            "flags": "EQ",
+            "rel": "1"
+          },
+          {
+            "name": "adobe-release"
+          }
+        ],
+        "files": [
+          "/etc/yum.repos.d/adobe-linux-i386.repo",
+          "/etc/pki/rpm-gpg/RPM-GPG-KEY-adobe-linux"
+        ]
       }
     },
     ...
   ]
 }</code></pre>
           </div>
-
-          <div class="route">
-            <h3>Repository Filters</h3>
-            <p>Repositories can be coarsely filtered with <code>repos</code>, <code>release</code> and <code>arch</code>.
-            <pre><code>GET /packages?repos=korora-19-x86_64,korora-19-i386</code></pre>
-          </div>
-
-          <div class="route">
-            <h3>Collections</h3>
-            <p>All collections are returned as paginated objects. Collection objects will contain <code>page</code>, <code>page_size</code>, <code>item_count</code> and <code>items</code>.</p>
-          </div>
-
-          <div class="route">
-            <h3>Package Filters</h3>
-            <p>Packages can be filtered with any of the following parameters: <code>name</code>, <code>name_like</code>, <code>arch</code>, <code>version</code>, <code>epoch</code>, <code>release</code>, <code>summary</code>, <code>url</code>, <code>time_file</code>, <code>time_build</code>, <code>rpm_license</code>, <code>rpm_vendor</code>, <code>rpm_group</code>, <code>rpm_buildhost</code>, <code>rpm_sourcerpm</code>, <code>rpm_packager</code>, <code>size_package</code>,<code>size_installed</code>, and <code>size_archive</code>.</p>
-            <pre><code>GET /packages?name=perl
-
-GET /packages?name_like=perl</code></pre>
-          </div>
-
-          <div class="route">
-            <h3>Package Fields</h3>
-            <p>You can select which package fields you want displayed by using the <code>fields</code> parameter. Supply a comma seperated list of the from any of the following will define the fields returned: <code>name</code>, <code>arch</code>, <code>version</code>, <code>epoch</code>, <code>release</code>, <code>summary</code>, <code>url</code>, <code>time_file</code>, <code>time_build</code>, <code>rpm_license</code>, <code>rpm_vendor</code>, <code>rpm_group</code>, <code>rpm_buildhost</code>, <code>rpm_sourcerpm</code>, <code>rpm_packager</code>, <code>size_package</code>,<code>size_installed</code>, and <code>size_archive</code>.</p>
-            <pre><code>GET /packages?repos=korora-19-x86_64&fields=name,version,release,epoch</code></pre>
-          </div>
-
-          <div class="route">
-            <h3>Fields and Abbreviation</h3>
-            <p>For the sake of brevity and efficiency, field names are abbreviated in the resulting JSON.</p>
-            <p>A tranlsation of the abbreviations to field names is shown in the table below.</p>
-            <table class="table table-condensed table-striped">
-              <thead>
-                <tr>
-                  <th>Abbr</th>
-                  <th>Field</th>
-                  <th>Abbr</th>
-                  <th>Field</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>pk</td>
-                  <td>pkgKey</td>
-                  <td>tf</td>
-                  <td>time_file</td>
-                </tr>
-                <tr>
-                  <td>pi</td>
-                  <td>pkgId</td>
-                  <td>tb</td>
-                  <td>time_build</td>
-                </tr>
-                <tr>
-                  <td>n</td>
-                  <td>name</td>
-                  <td>rp</td>
-                  <td>rpm_packager</td>
-                </tr>
-                <tr>
-                  <td>a</td>
-                  <td>arch</td>
-                  <td>rl</td>
-                  <td>rpm_license</td>
-                </tr>
-                <tr>
-                  <td>e</td>
-                  <td>epoch</td>
-                  <td>rv</td>
-                  <td>rpm_vendor</td>
-                </tr>
-                <tr>
-                  <td>v</td>
-                  <td>version</td>
-                  <td>rg</td>
-                  <td>rpm_group</td>
-                </tr>
-                <tr>
-                  <td>r</td>
-                  <td>release</td>
-                  <td>rbh</td>
-                  <td>rpm_buildhost</td>
-                </tr>
-                <tr>
-                  <td>s</td>
-                  <td>summary</td>
-                  <td>rsr</td>
-                  <td>rpm_sourcerpm</td>
-                </tr>
-                <tr>
-                  <td>d</td>
-                  <td>description</td>
-                  <td>si</td>
-                  <td>size_installed</td>
-                </tr>
-                <tr>
-                  <td>u</td>
-                  <td>url</td>
-                  <td>sa</td>
-                  <td>size_archive</td>
-                </tr>
-                <tr>
-                  <td>d</td>
-                  <td>description</td>
-                  <td>sp</td>
-                  <td>size_package</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <h3>Parameters</h3>
+          <h4>filter</h4>
+          <p>A base64url encoded mongodb query.</p>
+          <h4>page</h4>
+          <p>Set the page to be returned.</p>
+          <h4>page_size</h4>
+          <p>Set the number of documents to return per page.</p>
         </div>
       </div>
       <div class="row">
@@ -300,7 +281,7 @@ GET /packages?name_like=perl</code></pre>
       </div>
       <div class="row footer">
         <div class="col-sm-8 col-sm-offset-2">
-          <p class="inline footer">A <a href="https://www.kororaprojecct.org">KORORA PROJECT</a> INITIATIVE</p>
+          <p class="inline footer">A <a href="https://www.kororaproject.org">KORORA PROJECT</a> INITIATIVE</p>
           <p class="inline label label-danger pull-right">ALPHA</span>
         </div>
       </div>

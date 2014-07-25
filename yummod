@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
-# Copyright (C) 2013    Ian Firns   <firnsy@kororaproject.org>
-#                       Chris Smart <csmart@kororaproject.org>
+# Copyright (C) 2013-2014   Ian Firns <firnsy@kororaproject.org>
+#                           Korora Project <admin@kororaproject.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -15,25 +15,25 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#j
+#
 
 use lib './lib';
 
-use Mojolicious::Lite;
 use Data::Dumper;
+use File::Spec;
+use FindBin;
+use Mango;
+use MIME::Base64 qw(decode_base64url);
+use Mojolicious::Lite;
+use Mojo::JSON 'j';
 
 use Yummo::Store;
 
 my $store = Yummo::Store->new;
 
-say "Loading repositories ...";
-$store->load_repository_directory;
-
-# reload repositories every hour
-Mojo::IOLoop->recurring(3600 => sub {
-  say "Reloading repositories ...";
-  $store->load_repository_directory;
-});
+my $config_file = File::Spec->catfile( $FindBin::Bin, 'yummo.conf' );
+my $config = plugin('JSONConfig' => { file => $config_file });
+my $mango = Mango->new( $config->{db}{url} );
 
 helper build_filter => sub {
   my $self = shift;
@@ -51,8 +51,14 @@ helper build_filter => sub {
     fields    => $self->param('fields')     // $defaults{fields} // undef,
 
     page      => $self->param('page')       // 0,
-    page_size => $self->param('page_size')  // 1000,
+    page_size => $self->param('page_size')  // 256,
   ];
+};
+
+helper db_collection => sub {
+  my ($self, $id) = @_;
+
+  return $mango->db('yummo')->collection( $id // 'packages' );
 };
 
 get '/' => sub {
@@ -61,118 +67,77 @@ get '/' => sub {
 
 get '/packages' => sub {
   my $self = shift;
-  # set default fields to summative information only
-  my $filter = $self->build_filter(
-    fields => "pkgKey,epoch,version,arch,release,time_build,time_file,size_installed,size_package,size_archive"
-  );
 
-  my $packages = $store->packages( @$filter );
+  my $page      = $self->param('page')       // 0;
+  my $page_size = $self->param('page_size')  // 256;
+  my $filter    = $self->param('filter')     // "";
 
-  $self->render( json => $packages );
+  $page_size = 256 if $page_size > 256;
+
+  my $query = $filter ? j(decode_base64url($filter)) : {};
+
+  $self->render_later;
+
+  my $collection = $mango->db('yummo')->collection('packages');
+
+  my $cursor = $collection->find($query);
+  my $total_count = $cursor->count;
+
+  $cursor->skip($page * $page_size)->limit($page_size)->all(sub {
+    my ($cursor, $err, $packages) = @_;
+
+    $self->render( json => {
+      meta => {
+        pages => {
+          current => $page,
+          size    => $page_size,
+        },
+        count  => $total_count,
+      },
+      packages => $packages,
+    });
+  });
 };
 
-get '/packages/count' => sub {
+get '/package/:id' => sub {
   my $self = shift;
-  my $filter = $self->build_filter;
 
-  my $packages = $store->packages_count( @$filter );
+  my $id;
+  eval { $id = Mango::BSON::ObjectID->new($self->param('id')) };
 
-  $self->render( json => $packages );
-};
+  return $self->render( json => { error => "Invalid object ID" } ) if $@;
 
-get '/packages/names' => sub {
-  my $self = shift;
-  my $filter = $self->build_filter;
+  my $query = { _id => $id };
 
-  my $packages = $store->packages_names( @$filter );
+  $self->render_later;
 
-  $self->render( json => $packages );
+  my $collection = $self->db_collection('packages');
+  $collection->find_one($query => sub {
+    my ($cursor, $err, $package) = @_;
+
+    $self->render( json => $package );
+  });
 };
 
 get '/repos' => sub {
   my $self = shift;
-  my $filter = $self->build_filter;
 
-  my $repos = $store->repositories( @$filter );
+  $self->render_later;
 
-  $self->render( json => $repos );
-};
+  my $collection = $self->db_collection('repositories');
+  $collection->find({})->all(sub {
+    my ($cursor, $err, $repositories) = @_;;
 
-get '/repo/:repo/packages/count' => sub {
-  my $self = shift;
-  my $filter = $self->build_filter;
-
-  my $packages = $store->packages_count( @$filter );
-
-  $self->render( json => $packages );
-};
-
-get '/repo/:repo/packages/names' => sub {
-  my $self = shift;
-  my $filter = $self->build_filter;
-
-  my $packages = $store->packages_grouped_by_names( @$filter );
-
-  $self->render( json => $packages );
-};
-
-get '/repo/:repo/package/:name' => sub {
-  my $self = shift;
-  # set default fields for verbose package details
-  my $filter = $self->build_filter(
-    fields => "name,pkgKey,pkgId,arch,version,epoch,release,summary,description,url,time_file,time_build,rpm_license,rpm_vendor,rpm_group,rpm_buildhost,rpm_sourcerpm,rpm_header_start,rpm_header_end,rpm_packager,size_package,size_installed,size_archive,location_href,location_base,checksum_type"
-  );
-
-  my $package = $store->packages( @$filter );
-
-  $self->render( json => $package );
-};
-
-get '/repo/:repo/package/:name/conflicts' => sub {
-  my $self = shift;
-  my $filter = $self->build_filter;
-
-  my $package = $store->package_conflicts( @$filter );
-
-  $self->render( json => $package );
-};
-
-get '/repo/:repo/package/:name/provides' => sub {
-  my $self = shift;
-  my $filter = $self->build_filter;
-
-  my $package = $store->package_provides( @$filter );
-
-  $self->render( json => $package );
-};
-
-get '/repo/:repo/package/:name/obsoletes' => sub {
-  my $self = shift;
-  my $filter = $self->build_filter;
-
-  my $package = $store->package_obsoletes( @$filter );
-
-  $self->render( json => $package );
-};
-
-get '/repo/:repo/package/:name/requires' => sub {
-  my $self = shift;
-  my $filter = $self->build_filter;
-
-  my $package = $store->package_requires( @$filter );
-
-  $self->render( json => $package );
+    $self->render( json => {
+      repositories => $repositories
+    });
+  });
 };
 
 any '*' => sub {
   shift->redirect_to('/');
 };
 
-app->config(hypnotoad => {
-  listen    => ['http://localhost:31001'],
-  lock_file => '/var/lock/subsys/yummod.lock',
-  pid_file  => '/var/run/yummod.pid'
-});
-
-app->secret('yummo');
+app->config( hypnotoad => $config->{hypnotoad} );
+app->secrets(['yummo']);
 app->start;
